@@ -44,6 +44,18 @@ void search_files_in_directory(std::filesystem::path filePath, const std::string
     }
 }
 
+void search_if_file_exists(std::filesystem::path filePath)
+{
+    if (fs::exists(filePath))
+    {
+        cout << "Die Datei '" << filePath << "' existiert.\n";
+    }
+    else
+    {
+        cout << "Die Datei '" << filePath << "' existiert nicht.\n";
+    }
+}
+
 /* Entry Point */
 int main(int argc, char *argv[])
 {
@@ -103,6 +115,16 @@ int main(int argc, char *argv[])
         {
             search_files_in_directory(directory, "");
         }
+    }
+
+    if (dateiname != nullptr)
+    {
+        search_if_file_exists(dateiname);
+    }
+    else
+    {
+        cerr << "Fehler: Keine Datei angegeben.\n";
+        exit(1);
     }
 
     cout << directory;

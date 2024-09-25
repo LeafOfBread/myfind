@@ -21,6 +21,28 @@ void print_usage(char *programm_name)
     return;
 }
 
+void case_insenstive_search_files_in_directory(std::filesystem::path filePath, const std::string &file_pattern)
+{
+    if (!fs::exists(filePath) || !fs::is_directory(filePath))
+    {
+        cerr << "Fehler: Das Verzeichnis '" << filePath << "' existiert nicht oder ist kein Verzeichnis.\n";
+        exit(1);
+    }
+
+    cout << "Durchsuche Verzeichnis: " << filePath << "\n";
+    for (const auto &entry : fs::directory_iterator(filePath))
+    {
+        if (entry.is_regular_file())
+        {
+            // Überprüfen, ob der Dateiname dem Suchmuster entspricht
+            if (entry.path().filename().string().find(file_pattern) != std::string::npos)
+            {
+                cout << "Gefundene Datei: " << entry.path() << "\n";
+            }
+        }
+    }
+}
+
 /* Funktion zum Suchen von Dateien */
 void search_files_in_directory(std::filesystem::path filePath, const std::string &file_pattern)
 {
@@ -127,8 +149,6 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    cout << directory;
-
     cout << argv[optind] << endl;
     if (optind < argc)
     {
@@ -151,7 +171,5 @@ int main(int argc, char *argv[])
     {
         printf("Die Datei '%s' wurde mit der Option -f angegeben.\n", dateiname);
     }
-
-
     return (0);
 }

@@ -48,11 +48,11 @@ void search_files_in_directory(std::filesystem::path filePath, const std::string
 {
     if (!fs::exists(filePath) || !fs::is_directory(filePath))
     {
-        cerr << "Fehler: Das Verzeichnis '" << filePath << "' existiert nicht oder ist kein Verzeichnis.\n";
+        std::cerr << "Fehler: Das Verzeichnis '" << filePath << "' existiert nicht oder ist kein Verzeichnis.\n";
         exit(1);
     }
 
-    cout << "Durchsuche Verzeichnis: " << filePath << "\n";
+    std::cout << "Durchsuche Verzeichnis: " << filePath << "\n";
     for (const auto &entry : fs::directory_iterator(filePath))
     {
         if (entry.is_regular_file())
@@ -60,7 +60,15 @@ void search_files_in_directory(std::filesystem::path filePath, const std::string
             // Überprüfen, ob der Dateiname dem Suchmuster entspricht
             if (entry.path().filename().string().find(file_pattern) != std::string::npos)
             {
-                cout << "Gefundene Datei: " << entry.path() << "\n";
+                std::cout << "Gefundene Datei: " << entry.path() << "\n";
+            }
+        }
+        else if (entry.is_directory())
+        {
+            // Überprüfen, ob der Ordnername dem Suchmuster entspricht
+            if (entry.path().filename().string().find(file_pattern) != std::string::npos)
+            {
+                std::cout << "Gefundener Ordner: " << entry.path() << "\n";
             }
         }
     }
@@ -88,6 +96,7 @@ int main(int argc, char *argv[])
     unsigned short Counter_Option_f = 0;
     unsigned short Counter_Option_h = 0;
     unsigned short Counter_Option_v = 0;
+    unsigned short Counter_Option_r = 0;
 
     programm_name = argv[0];
 
@@ -115,6 +124,9 @@ int main(int argc, char *argv[])
             break;
         case 'd':
             directory = optarg;
+            break;
+        case 'R':
+            Counter_Option_r++;
             break;
         default:
             assert(0);

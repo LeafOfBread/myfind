@@ -150,20 +150,18 @@ int main(int argc, char *argv[])
     std::cout << dateiname.size() << endl;
 
     for (int i = 0; i < dateiname.size(); i++)
-    {
-        std::cout << "Dateiname: " << dateiname[0] << dateiname[1] << endl;
-    
+    {    
     if (directory != nullptr)
     {
         // Dateisuche nur, wenn ein Verzeichnis angegeben wurde
-       if (i <= dateiname.size())
+       if (i < dateiname.size())
             search_files_in_directory(directory, dateiname[i]);
 
         else
             search_files_in_directory(directory, "");
     }
 
-    if (i <= dateiname.size() && directory == nullptr)
+    if (i < dateiname.size() && directory == nullptr)
     {
         search_files_in_directory("./", dateiname[i]);
     }
@@ -192,9 +190,5 @@ int main(int argc, char *argv[])
         printf(" nicht");
     }
     printf(" gesetzt.\n");
-    if (Counter_Option_f > 0)
-    {
-        //printf("Die Datei '%s' wurde mit der Option -f angegeben.\n", dateiname);
-    }
     return (0);
 }

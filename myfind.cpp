@@ -9,6 +9,7 @@
 #include <assert.h>
 #include <algorithm>
 #include <cctype>
+#include <sys/wait.h>
 
 using namespace std;
 namespace fs = std::filesystem; // Aliasing für einfachere Verwendung
@@ -17,7 +18,7 @@ unsigned short Counter_Option_f = 0;
 unsigned short Counter_Option_h = 0;
 unsigned short Counter_Option_v = 0;
 unsigned short Counter_Option_r = 0;
-unsigned short Counter_Option_i = 0;
+unsigned short Counter_Option_i = 0; 
 
 /* Verbose Flag wird global gesetzt, damit der komplette Code es sehen kann. */
 unsigned short opt_verbose = 0;
@@ -52,12 +53,11 @@ void search_files_in_directory(std::filesystem::path filePath, const std::string
     for (const auto &entry : fs::directory_iterator(filePath))
     {
         const std::string filename = entry.path().filename().string();
+        bool fileMatches = (Counter_Option_i) ? toLower(filename) == lowerName : filename == file_pattern;
 
         if (entry.is_regular_file())
         {
-            bool fileMatches = (Counter_Option_i) ? toLower(filename) == lowerName : filename == file_pattern;
             if (!fileMatches) continue;
-
             std::cout << "Gefundene Datei: " << fs::absolute(entry.path()) << "\n";
         }
         else if (entry.is_directory())
@@ -70,6 +70,11 @@ void search_files_in_directory(std::filesystem::path filePath, const std::string
             {
                 search_files_in_directory(entry.path(), file_pattern);
             }
+        }
+        else
+        {
+            std::cerr << "Fehler: Datei '" << entry.path() << "' ist kein reguläres File oder Verzeichnis.\n";
+            exit(1);
         }
     }
 }
@@ -125,7 +130,7 @@ int main(int argc, char *argv[])
             assert(0);
         }
     }
-    if ((Counter_Option_f > 1) || (Counter_Option_h > 1) || (Counter_Option_v > 1))
+    if ((Counter_Option_f > 1) || (Counter_Option_h > 1) || (Counter_Option_v > 1) || (Counter_Option_r > 1) || (Counter_Option_i > 1))
     {
         fprintf(stderr, "%s Fehler: Optionen wurden mehrfach verwendet.\n", programm_name);
         exit(1);
@@ -133,26 +138,33 @@ int main(int argc, char *argv[])
 
     for (int i = 0; i < dateiname.size(); i++)
     {
-        if (directory != nullptr)
-        {
-            // Dateisuche nur, wenn ein Verzeichnis angegeben wurde
-            if (i < dateiname.size())
-                search_files_in_directory(directory, dateiname[i]);
+        pid_t pid = fork();  // Create a new process for each file
 
-            else
-                search_files_in_directory(directory, "");
-        }
-
-        if (i < dateiname.size() && directory == nullptr)
+        if (pid < 0) 
         {
-            search_files_in_directory("./", dateiname[i]);
-        }
-        else if (i > dateiname.size() && directory != nullptr)
-        {
-            cerr << "Fehler: Keine Datei angegeben.\n";
+            // Fork failed
+            std::cerr << "Error: Unable to fork.\n";
             exit(1);
+        } 
+        else if (pid == 0) 
+        {
+            // Child process
+            if (directory != nullptr)
+            {
+                cout << "PID: " << getpid() << " ";
+                search_files_in_directory(directory, dateiname[i]);
+            }
+            else
+            {
+                cout << "PID: " << getpid() << " ";
+                search_files_in_directory("./", dateiname[i]);
+            }
+            exit(0); // Terminate child process after it finishes
         }
     }
+
+    int status;
+    while (wait(&status) > 0);
 
     if (optind < argc)
     {

@@ -7,9 +7,17 @@
 #include <string>
 #include <getopt.h>
 #include <assert.h>
+#include <algorithm>
+#include <cctype>
 
 using namespace std;
-namespace fs = std::filesystem;  // Aliasing für einfachere Verwendung
+namespace fs = std::filesystem; // Aliasing für einfachere Verwendung
+
+unsigned short Counter_Option_f = 0;
+unsigned short Counter_Option_h = 0;
+unsigned short Counter_Option_v = 0;
+unsigned short Counter_Option_r = 0;
+unsigned short Counter_Option_i = 0;
 
 /* Verbose Flag wird global gesetzt, damit der komplette Code es sehen kann. */
 unsigned short opt_verbose = 0;
@@ -17,51 +25,57 @@ unsigned short opt_verbose = 0;
 /* Hilfsfunktion */
 void print_usage(char *programm_name)
 {
-    printf("Usage: %s [-h] [-v] [-f dateiname] [-d verzeichnis]\n\n", programm_name);
+    printf("Usage: %s [-h] [-v] [-i] [-r] [-f dateiname] [-d verzeichnis]\n\n", programm_name);
     return;
 }
 
-void case_insenstive_search_files_in_directory(std::filesystem::path filePath, const std::string &file_pattern)
+std::string toLower(const std::string &str)
 {
-    if (!fs::exists(filePath) || !fs::is_directory(filePath))
-    {
-        cerr << "Fehler: Das Verzeichnis '" << filePath << "' existiert nicht oder ist kein Verzeichnis.\n";
-        exit(1);
-    }
-
-    cout << "Durchsuche Verzeichnis: " << filePath << "\n";
-    for (const auto &entry : fs::directory_iterator(filePath))
-    {
-        if (entry.is_regular_file())
-        {
-            // Überprüfen, ob der Dateiname dem Suchmuster entspricht
-            if (entry.path().filename().string().find(file_pattern) != std::string::npos)
-            {
-                cout << "Gefundene Datei: " << entry.path() << "\n";
-            }
-        }
-    }
+    std::string result = str;
+    std::transform(result.begin(), result.end(), result.begin(),
+                   [](unsigned char c)
+                   { return std::tolower(c); });
+    return result;
 }
 
 /* Funktion zum Suchen von Dateien */
 void search_files_in_directory(std::filesystem::path filePath, const std::string &file_pattern)
 {
+    string lowerName = toLower(file_pattern);
     if (!fs::exists(filePath) || !fs::is_directory(filePath))
     {
         std::cerr << "Fehler: Das Verzeichnis '" << filePath << "' existiert nicht oder ist kein Verzeichnis.\n";
         exit(1);
     }
-
-    std::cout << "Durchsuche Verzeichnis: " << filePath << "\n";
     for (const auto &entry : fs::directory_iterator(filePath))
     {
         if (entry.is_regular_file())
         {
-            // Überprüfen, ob der Dateiname dem Suchmuster entspricht
-            if (entry.path().filename().string().find(file_pattern) != std::string::npos)
-            {
-                std::cout << "Gefundene Datei: " << entry.path() << "\n";
-            }
+
+                if (Counter_Option_f)
+                {
+                    if (Counter_Option_i)
+                    {
+                        if (toLower(entry.path().filename().string()) == lowerName)
+                        {
+                            std::cout << "Gefundene Datei: " << fs::absolute(entry.path()) << "\n";
+                        }
+                    }
+                    else
+                    {
+                        if (entry.path().filename().string() == file_pattern)
+                        { 
+                            std::cout << "Gefundene Datei: " << fs::absolute(entry.path()) << "\n";
+                        }
+                    }
+                }
+                else
+                {
+                    if (entry.path().filename().string() == file_pattern)
+                        { 
+                            std::cout << "Gefundene Datei: " << fs::absolute(entry.path()) << "\n";
+                        }
+                }
         }
         else if (entry.is_directory())
         {
@@ -70,19 +84,11 @@ void search_files_in_directory(std::filesystem::path filePath, const std::string
             {
                 std::cout << "Gefundener Ordner: " << entry.path() << "\n";
             }
+            if (Counter_Option_r > 0)
+            {
+                search_files_in_directory(entry.path(), file_pattern);
+            }
         }
-    }
-}
-
-void search_if_file_exists(std::filesystem::path filePath)
-{
-    if (fs::exists(filePath))
-    {
-        cout << "Die Datei '" << filePath << "' existiert.\n";
-    }
-    else
-    {
-        cout << "Die Datei '" << filePath << "' existiert nicht.\n";
     }
 }
 
@@ -90,17 +96,13 @@ void search_if_file_exists(std::filesystem::path filePath)
 int main(int argc, char *argv[])
 {
     int c;
-    char *dateiname = nullptr;
+    std::vector<std::string> dateiname;
     char *directory = nullptr;
     char *programm_name;
-    unsigned short Counter_Option_f = 0;
-    unsigned short Counter_Option_h = 0;
-    unsigned short Counter_Option_v = 0;
-    unsigned short Counter_Option_r = 0;
 
     programm_name = argv[0];
 
-    while ((c = getopt(argc, argv, "hvf:d:")) != EOF)
+    while ((c = getopt(argc, argv, "hvf:d:iR")) != EOF)
     {
         switch (c)
         {
@@ -120,13 +122,20 @@ int main(int argc, char *argv[])
             break;
         case 'f':
             Counter_Option_f++;
-            dateiname = optarg;
+            dateiname.push_back(optarg);
+            for (int i = optind; i < argc && argv[i][0] != '-'; i++) {
+                    dateiname.push_back(argv[i]);
+                    optind++;  // Move the optind forward
+                }
             break;
         case 'd':
             directory = optarg;
             break;
         case 'R':
             Counter_Option_r++;
+            break;
+        case 'i':
+            Counter_Option_i++;
             break;
         default:
             assert(0);
@@ -138,30 +147,34 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
+    std::cout << dateiname.size() << endl;
+
+    for (int i = 0; i < dateiname.size(); i++)
+    {
+        std::cout << "Dateiname: " << dateiname[0] << dateiname[1] << endl;
+    
     if (directory != nullptr)
     {
         // Dateisuche nur, wenn ein Verzeichnis angegeben wurde
-        if (dateiname != nullptr)
-        {
-            search_files_in_directory(directory, dateiname);
-        }
+       if (i <= dateiname.size())
+            search_files_in_directory(directory, dateiname[i]);
+
         else
-        {
             search_files_in_directory(directory, "");
-        }
     }
 
-    if (dateiname != nullptr)
+    if (i <= dateiname.size() && directory == nullptr)
     {
-        search_if_file_exists(dateiname);
+        search_files_in_directory("./", dateiname[i]);
     }
-    else
+    else if (i > dateiname.size() && directory != nullptr)
     {
         cerr << "Fehler: Keine Datei angegeben.\n";
         exit(1);
     }
+    }
 
-    cout << argv[optind] << endl;
+    std::cout << argv[optind] << endl;
     if (optind < argc)
     {
         printf("ARGV Elemente ohne Optionen: ");
@@ -181,7 +194,7 @@ int main(int argc, char *argv[])
     printf(" gesetzt.\n");
     if (Counter_Option_f > 0)
     {
-        printf("Die Datei '%s' wurde mit der Option -f angegeben.\n", dateiname);
+        //printf("Die Datei '%s' wurde mit der Option -f angegeben.\n", dateiname);
     }
     return (0);
 }

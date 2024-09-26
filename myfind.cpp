@@ -17,7 +17,7 @@ namespace fs = std::filesystem; // Aliasing für einfachere Verwendung
 unsigned short Counter_Option_f = 0;
 unsigned short Counter_Option_h = 0;
 unsigned short Counter_Option_r = 0;
-unsigned short Counter_Option_i = 0; 
+unsigned short Counter_Option_i = 0;
 
 /* Hilfsfunktion */
 void print_usage(char *programm_name)
@@ -38,13 +38,13 @@ std::string toLower(const std::string &str) // Funktion zum Umwandeln von Groß-
 // Funktion zum Suchen von Dateien im Verzeichnis
 bool search_files_in_directory(std::filesystem::path filePath, const std::string &file_pattern)
 {
-    bool fileFound = false;  // tracken ob file gefunden wurde
+    bool fileFound = false; // tracken ob file gefunden wurde
     string lowerName = toLower(file_pattern);
 
     if (!fs::exists(filePath) || !fs::is_directory(filePath))
     {
         std::cerr << "Fehler: Das Verzeichnis '" << filePath << "' existiert nicht oder ist kein Verzeichnis.\n";
-        return false;  // return false wenn Verzeichnis nicht existiert oder kein Verzeichnis ist
+        return false; // return false wenn Verzeichnis nicht existiert oder kein Verzeichnis ist
     }
 
     for (const auto &entry : fs::directory_iterator(filePath))
@@ -54,9 +54,10 @@ bool search_files_in_directory(std::filesystem::path filePath, const std::string
 
         if (entry.is_regular_file())
         {
-            if (!fileMatches) continue;
+            if (!fileMatches)
+                continue;
             std::cout << "Gefundene Datei: " << fs::absolute(entry.path()) << "\n";
-            fileFound = true;  // fileFound true setzen wenn Datei gefunden wurde
+            fileFound = true; // fileFound true setzen wenn Datei gefunden wurde
         }
         else if (entry.is_directory())
         {
@@ -69,7 +70,7 @@ bool search_files_in_directory(std::filesystem::path filePath, const std::string
                 // rekursiver Aufruf
                 if (search_files_in_directory(entry.path(), file_pattern))
                 {
-                    fileFound = true;  // falls file gefunden nach rekursiver suche, setze fileFound auf true
+                    fileFound = true; // falls file gefunden nach rekursiver suche, setze fileFound auf true
                 }
             }
         }
@@ -79,7 +80,7 @@ bool search_files_in_directory(std::filesystem::path filePath, const std::string
             return false;
         }
     }
-    return fileFound;  // return true, falls fileFound true ist
+    return fileFound; // return true, falls fileFound true ist
 }
 
 /* Entry Point */
@@ -136,26 +137,28 @@ int main(int argc, char *argv[])
 
     for (int i = 0; i < dateiname.size(); i++)
     {
-        pid_t pid = fork();  // fuer jede Datei ein Kindprozess erstellen
+        pid_t pid = fork(); // fuer jede Datei ein Kindprozess erstellen
 
-        if (pid < 0) 
+        if (pid < 0)
         {
             // Fork fehlgeschlagen
             std::cerr << "Error: Unable to fork.\n";
             exit(1);
-        } 
-        else if (pid == 0) 
+        }
+        else if (pid == 0)
         {
             // Child process
             if (directory != nullptr)
             {
                 cout << "PID: " << getpid() << " ";
-                if (!search_files_in_directory(directory, dateiname[i])) cout << "Datei " << dateiname[i] << " nicht gefunden.\n";
+                if (!search_files_in_directory(directory, dateiname[i]))
+                    cout << "Datei " << dateiname[i] << " nicht gefunden.\n";
             }
             else
             {
                 cout << "PID: " << getpid() << " ";
-                if (!search_files_in_directory("./", dateiname[i])) cout << "Datei " << dateiname[i] << " nicht gefunden.\n";
+                if (!search_files_in_directory("./", dateiname[i]))
+                    cout << "Datei " << dateiname[i] << " nicht gefunden.\n";
             }
             exit(0); // kill child process nach suche
         }

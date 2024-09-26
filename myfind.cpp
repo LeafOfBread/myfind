@@ -163,5 +163,10 @@ int main(int argc, char *argv[])
             exit(0); // kill child process nach suche
         }
     }
+    
+    for (int i = 0;i < dateiname.size();i++)
+    {
+        wait(NULL); // wait for child process to finish
+    }
     return (0);
 }

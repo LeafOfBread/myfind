@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <stdlib.h>
 #include <iostream>
 #include <string>
 #include <getopt.h>
@@ -14,14 +13,11 @@
 using namespace std;
 namespace fs = std::filesystem; // Aliasing für einfachere Verwendung
 
+/* Globale Variablen */
 unsigned short Counter_Option_f = 0;
 unsigned short Counter_Option_h = 0;
-unsigned short Counter_Option_v = 0;
 unsigned short Counter_Option_r = 0;
 unsigned short Counter_Option_i = 0; 
-
-/* Verbose Flag wird global gesetzt, damit der komplette Code es sehen kann. */
-unsigned short opt_verbose = 0;
 
 /* Hilfsfunktion */
 void print_usage(char *programm_name)
@@ -30,7 +26,7 @@ void print_usage(char *programm_name)
     return;
 }
 
-std::string toLower(const std::string &str)
+std::string toLower(const std::string &str) // Funktion zum Umwandeln von Groß- in Kleinbuchstaben (Case-Insensitive)
 {
     std::string result = str;
     std::transform(result.begin(), result.end(), result.begin(),
@@ -39,15 +35,16 @@ std::string toLower(const std::string &str)
     return result;
 }
 
-/* Funktion zum Suchen von Dateien */
-void search_files_in_directory(std::filesystem::path filePath, const std::string &file_pattern)
+// Funktion zum Suchen von Dateien im Verzeichnis
+bool search_files_in_directory(std::filesystem::path filePath, const std::string &file_pattern)
 {
+    bool fileFound = false;  // tracken ob file gefunden wurde
     string lowerName = toLower(file_pattern);
 
     if (!fs::exists(filePath) || !fs::is_directory(filePath))
     {
         std::cerr << "Fehler: Das Verzeichnis '" << filePath << "' existiert nicht oder ist kein Verzeichnis.\n";
-        exit(1);
+        return false;  // return false wenn Verzeichnis nicht existiert oder kein Verzeichnis ist
     }
 
     for (const auto &entry : fs::directory_iterator(filePath))
@@ -59,6 +56,7 @@ void search_files_in_directory(std::filesystem::path filePath, const std::string
         {
             if (!fileMatches) continue;
             std::cout << "Gefundene Datei: " << fs::absolute(entry.path()) << "\n";
+            fileFound = true;  // fileFound true setzen wenn Datei gefunden wurde
         }
         else if (entry.is_directory())
         {
@@ -68,17 +66,21 @@ void search_files_in_directory(std::filesystem::path filePath, const std::string
             }
             if (Counter_Option_r > 0)
             {
-                search_files_in_directory(entry.path(), file_pattern);
+                // rekursiver Aufruf
+                if (search_files_in_directory(entry.path(), file_pattern))
+                {
+                    fileFound = true;  // falls file gefunden nach rekursiver suche, setze fileFound auf true
+                }
             }
         }
         else
         {
             std::cerr << "Fehler: Datei '" << entry.path() << "' ist kein reguläres File oder Verzeichnis.\n";
-            exit(1);
+            return false;
         }
     }
+    return fileFound;  // return true, falls fileFound true ist
 }
-
 
 /* Entry Point */
 int main(int argc, char *argv[])
@@ -104,17 +106,13 @@ int main(int argc, char *argv[])
             print_usage(programm_name);
             exit(0);
             break;
-        case 'v':
-            Counter_Option_v++;
-            opt_verbose = 1;
-            break;
         case 'f':
             Counter_Option_f++;
             dateiname.push_back(optarg);
             for (int i = optind; i < argc && argv[i][0] != '-'; i++)
             {
                 dateiname.push_back(argv[i]);
-                optind++; // Move the optind forward
+                optind++;
             }
             break;
         case 'd':
@@ -130,7 +128,7 @@ int main(int argc, char *argv[])
             assert(0);
         }
     }
-    if ((Counter_Option_f > 1) || (Counter_Option_h > 1) || (Counter_Option_v > 1) || (Counter_Option_r > 1) || (Counter_Option_i > 1))
+    if ((Counter_Option_f > 1) || (Counter_Option_h > 1) || (Counter_Option_r > 1) || (Counter_Option_i > 1))
     {
         fprintf(stderr, "%s Fehler: Optionen wurden mehrfach verwendet.\n", programm_name);
         exit(1);
@@ -138,11 +136,11 @@ int main(int argc, char *argv[])
 
     for (int i = 0; i < dateiname.size(); i++)
     {
-        pid_t pid = fork();  // Create a new process for each file
+        pid_t pid = fork();  // fuer jede Datei ein Kindprozess erstellen
 
         if (pid < 0) 
         {
-            // Fork failed
+            // Fork fehlgeschlagen
             std::cerr << "Error: Unable to fork.\n";
             exit(1);
         } 
@@ -152,36 +150,15 @@ int main(int argc, char *argv[])
             if (directory != nullptr)
             {
                 cout << "PID: " << getpid() << " ";
-                search_files_in_directory(directory, dateiname[i]);
+                if (!search_files_in_directory(directory, dateiname[i])) cout << "Datei " << dateiname[i] << " nicht gefunden.\n";
             }
             else
             {
                 cout << "PID: " << getpid() << " ";
-                search_files_in_directory("./", dateiname[i]);
+                if (!search_files_in_directory("./", dateiname[i])) cout << "Datei " << dateiname[i] << " nicht gefunden.\n";
             }
-            exit(0); // Terminate child process after it finishes
+            exit(0); // kill child process nach suche
         }
     }
-
-    int status;
-    while (wait(&status) > 0);
-
-    if (optind < argc)
-    {
-        printf("ARGV Elemente ohne Optionen: ");
-        while (optind < argc)
-        {
-            printf("%s ", argv[optind++]);
-        }
-        printf("\n");
-    }
-
-    // printf("Es wurden %u Argumente angeben.\n", argc);
-    // printf("Verbose Modus ist");
-    if (opt_verbose == 0)
-    {
-        // printf(" nicht");
-    }
-    // printf(" gesetzt.\n");
     return (0);
 }

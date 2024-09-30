@@ -93,7 +93,8 @@ int main(int argc, char *argv[])
 
     programm_name = argv[0];
 
-    while ((c = getopt(argc, argv, "hvf:d:iR")) != EOF)
+    // Optionen parsen
+    while ((c = getopt(argc, argv, "hRi")) != EOF)
     {
         switch (c)
         {
@@ -107,18 +108,6 @@ int main(int argc, char *argv[])
             print_usage(programm_name);
             exit(0);
             break;
-        case 'f':
-            Counter_Option_f++;
-            dateiname.push_back(optarg);
-            for (int i = optind; i < argc && argv[i][0] != '-'; i++)
-            {
-                dateiname.push_back(argv[i]);
-                optind++;
-            }
-            break;
-        case 'd':
-            directory = optarg;
-            break;
         case 'R':
             Counter_Option_r++;
             break;
@@ -129,15 +118,37 @@ int main(int argc, char *argv[])
             assert(0);
         }
     }
-    if ((Counter_Option_f > 1) || (Counter_Option_h > 1) || (Counter_Option_r > 1) || (Counter_Option_i > 1))
+
+    // Suchpfad und Dateinamen parsen
+    if (optind < argc)
     {
-        fprintf(stderr, "%s Fehler: Optionen wurden mehrfach verwendet.\n", programm_name);
+        directory = argv[optind]; // Erster nicht-Optionen-Parameter ist der Suchpfad
+        optind++;
+    }
+    else
+    {
+        std::cerr << "Fehler: Suchpfad fehlt.\n";
+        print_usage(programm_name);
         exit(1);
     }
 
+    // Alle folgenden Argumente sind Dateinamen
+    for (int i = optind; i < argc; i++)
+    {
+        dateiname.push_back(argv[i]);
+    }
+
+    if (dateiname.empty())
+    {
+        std::cerr << "Fehler: Es muss mindestens ein Dateiname angegeben werden.\n";
+        print_usage(programm_name);
+        exit(1);
+    }
+
+    // Forken für jede Datei
     for (int i = 0; i < dateiname.size(); i++)
     {
-        pid_t pid = fork(); // fuer jede Datei ein Kindprozess erstellen
+        pid_t pid = fork(); // für jede Datei ein Kindprozess erstellen
 
         if (pid < 0)
         {
@@ -148,25 +159,17 @@ int main(int argc, char *argv[])
         else if (pid == 0)
         {
             // Child process
-            if (directory != nullptr)
-            {
-                cout << "PID: " << getpid() << " ";
-                if (!search_files_in_directory(directory, dateiname[i]))
-                    cout << "Datei " << dateiname[i] << " nicht gefunden.\n";
-            }
-            else
-            {
-                cout << "PID: " << getpid() << " ";
-                if (!search_files_in_directory("./", dateiname[i]))
-                    cout << "Datei " << dateiname[i] << " nicht gefunden.\n";
-            }
-            exit(0); // kill child process nach suche
+            cout << "PID: " << getpid() << " ";
+            if (!search_files_in_directory(directory, dateiname[i]))
+                cout << "Datei " << dateiname[i] << " nicht gefunden.\n";
+            exit(0); // kill child process nach Suche
         }
     }
-    
-    for (int i = 0;i < dateiname.size();i++)
+
+    // Auf alle Kindprozesse warten
+    for (int i = 0; i < dateiname.size(); i++)
     {
         wait(NULL); // wait for child process to finish
     }
-    return (0);
+    return 0;
 }

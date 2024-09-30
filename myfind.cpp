@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cctype>
 #include <sys/wait.h>
+#include <fcntl.h>
 
 using namespace std;
 namespace fs = std::filesystem; // Aliasing für einfachere Verwendung
@@ -148,6 +149,13 @@ int main(int argc, char *argv[])
     // Forken für jede Datei
     for (int i = 0; i < dateiname.size(); i++)
     {
+        int pipefd[2];
+        if (pipe(pipefd) == -1)
+        {
+            std::cerr << "Error: Unable to create pipe.\n";
+            exit(1);
+        }
+
         pid_t pid = fork(); // für jede Datei ein Kindprozess erstellen
 
         if (pid < 0)
@@ -159,10 +167,28 @@ int main(int argc, char *argv[])
         else if (pid == 0)
         {
             // Child process
+            close(pipefd[0]); // close read end of pipe
+
+            dup2(pipefd[1], STDOUT_FILENO); // redirect stdout to pipe
+            close(pipefd[1]);                // close write end of pipe
+
             cout << "PID: " << getpid() << " ";
             if (!search_files_in_directory(directory, dateiname[i]))
                 cout << "Datei " << dateiname[i] << " nicht gefunden.\n";
             exit(0); // kill child process nach Suche
+        }
+        else
+        {
+            // Parent process
+            close(pipefd[1]); // close write end of pipe
+
+            char buffer[4096];
+            ssize_t n;
+            while ((n = read(pipefd[0], buffer, sizeof(buffer))) > 0)
+            {
+                std::cout.write(buffer, n);
+            }
+            close(pipefd[0]); // close read end of pipe
         }
     }
 
